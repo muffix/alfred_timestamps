@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>bundleid</key>
+	<string>de.muffix.alfred.timestamps</string>
+	<key>connections</key>
+	<dict>
+		<key>0F02A32B-421D-49B3-99E1-2131D2168404</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>FC89C834-7395-4D0B-B51E-6CDC07C0C8F6</string>
+			</dict>
+		</array>
+	</dict>
+	<key>createdby</key>
+	<string>Björn Marschollek</string>
+	<key>description</key>
+	<string>Workflow to convert timestamps</string>
+	<key>name</key>
+	<string>Timestamp converter</string>
+	<key>objects</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>clipboardtext</key>
+				<string>{query}</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.clipboard</string>
+			<key>uid</key>
+			<string>FC89C834-7395-4D0B-B51E-6CDC07C0C8F6</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argumenttreatemptyqueryasnil</key>
+				<true/>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>keyword</key>
+				<string>ts</string>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuemode</key>
+				<integer>2</integer>
+				<key>runningsubtext</key>
+				<string>Loading...</string>
+				<key>scriptfile</key>
+				<string>alfred_timestamps</string>
+				<key>title</key>
+				<string>Search</string>
+				<key>type</key>
+				<integer>8</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>0F02A32B-421D-49B3-99E1-2131D2168404</string>
+		</dict>
+	</array>
+	<key>uidata</key>
+	<dict>
+		<key>0F02A32B-421D-49B3-99E1-2131D2168404</key>
+		<dict>
+			<key>xpos</key>
+			<integer>50</integer>
+			<key>ypos</key>
+			<integer>50</integer>
+		</dict>
+		<key>FC89C834-7395-4D0B-B51E-6CDC07C0C8F6</key>
+		<dict>
+			<key>xpos</key>
+			<integer>225</integer>
+			<key>ypos</key>
+			<integer>50</integer>
+		</dict>
+	</dict>
+</dict>
+</plist>
