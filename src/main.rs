@@ -1,9 +1,82 @@
+use anyhow::anyhow;
+use anyhow::Result;
 use chrono::{DateTime, Local, NaiveDateTime, Utc};
 use log::{debug, info};
 use powerpack::{output, Icon, Item};
 use std::env;
 use std::error::Error;
+
 use std::iter;
+
+const ICON_DIR: &str = "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/";
+const CLOCK_ICON: &str = "icon.png";
+const CALENDAR_ICON: &str = "/System/Applications/Calendar.app";
+
+trait ToAlfredItem {
+    fn to_utc_item(&self, description: &str) -> Item<'static>;
+    fn to_localtime_item(&self, description: &str) -> Item<'static>;
+    fn to_timestamp_items(&self, description: &str) -> Vec<Item<'static>>;
+}
+
+impl ToAlfredItem for NaiveDateTime {
+    fn to_utc_item(&self, description: &str) -> Item<'static> {
+        let utc_dt = DateTime::<Utc>::from_utc(*self, Utc);
+        debug!("UTC Datetime: {:?}", utc_dt);
+        Item::new(utc_dt.to_rfc3339())
+            .subtitle(format!("From {}: UTC", description))
+            .icon(Icon::with_file_icon(CALENDAR_ICON))
+            .arg(utc_dt.timestamp().to_string())
+    }
+
+    fn to_localtime_item(&self, description: &str) -> Item<'static> {
+        let local_dt: DateTime<Local> = DateTime::from(DateTime::<Utc>::from_utc(*self, Utc));
+
+        debug!(
+            "Local datetime: {:?}, offset: {}",
+            local_dt,
+            local_dt.offset().to_string()
+        );
+
+        Item::new(local_dt.to_rfc3339())
+            .subtitle(format!(
+                "From {}: Local time ({})",
+                description,
+                local_dt.offset()
+            ))
+            .icon(Icon::with_file_icon(CALENDAR_ICON))
+            .arg(local_dt.to_string())
+    }
+
+    fn to_timestamp_items(&self, description: &str) -> Vec<Item<'static>> {
+        let ts_nanos = self.timestamp_nanos();
+        debug!("ns: {}", ts_nanos);
+        let ts_micros = self.timestamp_nanos() / 1000;
+        debug!("µs: {}", ts_micros);
+        let ts_millis = self.timestamp_millis();
+        debug!("ms: {}", ts_millis);
+        let ts_seconds = self.timestamp();
+        debug!("s: {}", ts_seconds);
+
+        vec![
+            Item::new(ts_seconds.to_string())
+                .subtitle(format!("{} in seconds (s)", description))
+                .icon(Icon::with_image(CLOCK_ICON))
+                .arg(ts_seconds.to_string()),
+            Item::new(ts_millis.to_string())
+                .subtitle(format!("{} in milliseconds (ms)", description))
+                .icon(Icon::with_image(CLOCK_ICON))
+                .arg(ts_millis.to_string()),
+            Item::new(ts_micros.to_string())
+                .subtitle(format!("{} in microseconds (µs)", description))
+                .icon(Icon::with_image(CLOCK_ICON))
+                .arg(ts_micros.to_string()),
+            Item::new(ts_nanos.to_string())
+                .subtitle(format!("{} in nanoseconds (ns)", description))
+                .icon(Icon::with_image(CLOCK_ICON))
+                .arg(ts_nanos.to_string()),
+        ]
+    }
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init_from_env(
@@ -14,70 +87,71 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Alfred passes in a single argument for the user query.
     let arg = env::args().nth(1);
-    let query = arg.as_deref().unwrap_or("");
+    let query = arg.as_deref().unwrap_or("").trim();
 
     info!("Query: {:?}", query);
 
+    let current_ts = current_timestamps(Utc::now().naive_utc());
+
     if query.is_empty() {
-        output(current_timestamps(Utc::now()))?;
+        output(current_ts)?;
         return Ok(());
     }
 
-    let maybe_timestamp = query.parse::<i64>();
-    if let Ok(timestamp) = maybe_timestamp {
-        output(parse_timestamp(timestamp))?;
-        Ok(())
-    } else {
-        match parse_date_string(query) {
-            Ok(items) => {
-                output(items)?;
-                Ok(())
-            }
-            Err(e) => {
-                output(iter::once(
-                    Item::new("Error")
-                        .subtitle(format!("Failed to parse '{:?}': {}", query, e.as_str()))
-                        .icon(powerpack::Icon::with_type("public.script")),
-                ))?;
-                Ok(())
-            }
+    match parse_datetime(query) {
+        Ok(dt) => {
+            let is_numeric = query.parse::<i64>().is_ok();
+            let mut items = match is_numeric {
+                true => vec![
+                    dt.to_localtime_item("entered time"),
+                    dt.to_utc_item("entered time"),
+                ],
+                false => dt.to_timestamp_items("Time since epoch"),
+            };
+            items.extend(current_ts);
+            output(items)?;
+            Ok(())
+        }
+        Err(e) => {
+            debug!("Failed to parse '{}', giving up. Final error: {}", query, e);
+            output(iter::once(
+                Item::new("Error")
+                    .subtitle(format!("Failed to parse '{}' to a date", query))
+                    .icon(powerpack::Icon::with_image(
+                        format!("{}/AlertStopIcon.icns", ICON_DIR).as_str(),
+                    )),
+            ))?;
+            Err(Box::from(e))
         }
     }
 }
 
-fn current_timestamps(datetime: DateTime<Utc>) -> Vec<Item<'static>> {
+fn current_timestamps(datetime: NaiveDateTime) -> Vec<Item<'static>> {
     debug!("Creating timestamps for {:?}", datetime);
-    let ts_nanos = datetime.timestamp_nanos().to_string();
-    debug!("ns: {}", ts_nanos);
-    let ts_micros = (datetime.timestamp_nanos() / 1000).to_string();
-    debug!("µs: {}", ts_micros);
-    let ts_millis = datetime.timestamp_millis().to_string();
-    debug!("ms: {}", ts_millis);
-    let ts_seconds = datetime.timestamp().to_string();
-    debug!("s: {}", ts_seconds);
 
-    vec![
-        Item::new(ts_seconds.clone())
-            .subtitle("Current timestamp in seconds")
-            .icon(Icon::with_image("icon.png"))
-            .arg(ts_seconds),
-        Item::new(ts_millis.clone())
-            .subtitle("Current timestamp in milliseconds")
-            .icon(Icon::with_image("icon.png"))
-            .arg(ts_millis),
-        Item::new(ts_micros.clone())
-            .subtitle("Current timestamp in microseconds")
-            .icon(Icon::with_image("icon.png"))
-            .arg(ts_micros),
-        Item::new(ts_nanos.clone())
-            .subtitle("Current timestamp in nanoseconds")
-            .icon(Icon::with_image("icon.png"))
-            .arg(ts_nanos),
-    ]
+    let mut items = datetime.to_timestamp_items("Current time");
+    items.extend(vec![
+        datetime.to_localtime_item("current time"),
+        datetime.to_utc_item("current time"),
+    ]);
+    items
 }
 
-fn parse_timestamp(ts: i64) -> Vec<Item<'static>> {
-    debug!("Attempting to parse timestamp: {}", ts);
+fn parse_datetime(s: &str) -> Result<NaiveDateTime> {
+    parse_timestamp(s).or(parse_iso8601(s)).or(parse_rfc2822(s))
+}
+
+fn parse_timestamp(s: &str) -> Result<NaiveDateTime> {
+    debug!("Attempting to parse timestamp: {}", s);
+
+    if s.len() > 22 {
+        return Err(anyhow!(
+            "String too long ({} characters). Timestamps have at most 20 digits.",
+            s.len()
+        ));
+    }
+
+    let ts = s.parse::<i64>()?;
 
     let mut seconds = ts;
     let mut exp = 0;
@@ -94,29 +168,19 @@ fn parse_timestamp(ts: i64) -> Vec<Item<'static>> {
         seconds, nanos
     );
 
-    let utc_dt =
-        DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(seconds, nanos as u32), Utc);
-    debug!("UTC Datetime: {:?}", utc_dt);
-
-    let local_dt: DateTime<Local> = DateTime::from(utc_dt);
-    debug!(
-        "Local datetime: {:?}, offset: {}",
-        local_dt,
-        local_dt.offset().to_string()
-    );
-
-    vec![
-        Item::new(utc_dt.to_rfc3339())
-            .subtitle("UTC")
-            .icon(Icon::with_image("icon.png"))
-            .arg(utc_dt.to_string()),
-        Item::new(local_dt.to_rfc3339())
-            .subtitle(format!("Local time ({})", local_dt.offset().to_string()))
-            .icon(Icon::with_image("icon.png"))
-            .arg(local_dt.to_string()),
-    ]
+    let naive_dt = NaiveDateTime::from_timestamp_opt(seconds, nanos as u32);
+    match naive_dt {
+        None => Err(anyhow!("Not a timestamp: {}", s)),
+        Some(dt) => Ok(dt),
+    }
 }
 
-fn parse_date_string(_s: &str) -> Result<Vec<Item<'static>>, String> {
-    Err("Not implemented".to_string())
+fn parse_iso8601(s: &str) -> Result<NaiveDateTime> {
+    debug!("Attempting to parse ISO8601 format");
+    Ok(s.parse::<DateTime<Utc>>()?.naive_utc())
+}
+
+fn parse_rfc2822(s: &str) -> Result<NaiveDateTime> {
+    debug!("Attempting to parse RFC 2822 format");
+    Ok(DateTime::parse_from_rfc2822(s)?.naive_utc())
 }
