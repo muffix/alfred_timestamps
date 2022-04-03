@@ -9,6 +9,7 @@ edition = "2021"
 anyhow = "1.0"
 chrono = "0.4"
 env_logger = "0.9"
+humantime = "2.1"
 log = "0.4"
 powerpack = "0.3.1"
 

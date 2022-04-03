@@ -18,6 +18,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "env_logger",
+ "humantime",
  "log",
  "powerpack",
 ]

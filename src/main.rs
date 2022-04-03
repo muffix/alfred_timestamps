@@ -7,6 +7,7 @@ use std::env;
 use std::error::Error;
 
 use std::iter;
+use std::time::Duration;
 
 const ICON_DIR: &str = "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/";
 const CLOCK_ICON: &str = "icon.png";
@@ -16,6 +17,7 @@ const OUTPUT_DATE_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 trait ToAlfredItem {
     fn to_utc_item(&self, description: &str) -> Item<'static>;
     fn to_localtime_item(&self, description: &str) -> Item<'static>;
+    fn to_relative_item(&self) -> Item<'static>;
     fn to_timestamp_items(&self, description: &str) -> Vec<Item<'static>>;
 }
 
@@ -46,6 +48,27 @@ impl ToAlfredItem for NaiveDateTime {
             ))
             .icon(Icon::with_file_icon(CALENDAR_ICON))
             .arg(local_dt.to_string())
+    }
+
+    fn to_relative_item(&self) -> Item<'static> {
+        let utc_dt = DateTime::<Utc>::from_utc(*self, Utc);
+        debug!("UTC: {}", utc_dt.to_rfc3339());
+        let dur = utc_dt.signed_duration_since(Utc::now());
+
+        let nanos = dur.num_nanoseconds().unwrap();
+        debug!("Duration relative to current time: {}", dur);
+
+        let dur = match dur.to_std() {
+            Ok(d) => d,
+            Err(_) => Duration::from_nanos((nanos * -1) as u64),
+        };
+        let ht = humantime::format_duration(dur);
+        debug!("Human-readable duration: {}", ht);
+
+        Item::new(ht.to_string())
+            .subtitle("Relative time")
+            .icon(Icon::with_image(CLOCK_ICON))
+            .arg(ht.to_string())
     }
 
     fn to_timestamp_items(&self, description: &str) -> Vec<Item<'static>> {
@@ -104,8 +127,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             let is_numeric = query.parse::<i64>().is_ok();
             let mut items = match is_numeric {
                 true => vec![
-                    dt.to_localtime_item("entered time"),
-                    dt.to_utc_item("entered time"),
+                    dt.to_localtime_item("timestamp"),
+                    dt.to_utc_item("timestamp"),
+                    dt.to_relative_item(),
                 ],
                 false => dt.to_timestamp_items("Time since epoch"),
             };
