@@ -11,6 +11,7 @@ use std::iter;
 const ICON_DIR: &str = "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/";
 const CLOCK_ICON: &str = "icon.png";
 const CALENDAR_ICON: &str = "/System/Applications/Calendar.app";
+const OUTPUT_DATE_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 
 trait ToAlfredItem {
     fn to_utc_item(&self, description: &str) -> Item<'static>;
@@ -22,7 +23,7 @@ impl ToAlfredItem for NaiveDateTime {
     fn to_utc_item(&self, description: &str) -> Item<'static> {
         let utc_dt = DateTime::<Utc>::from_utc(*self, Utc);
         debug!("UTC Datetime: {:?}", utc_dt);
-        Item::new(utc_dt.to_rfc3339())
+        Item::new(utc_dt.format(OUTPUT_DATE_FORMAT).to_string())
             .subtitle(format!("From {}: UTC", description))
             .icon(Icon::with_file_icon(CALENDAR_ICON))
             .arg(utc_dt.timestamp().to_string())
@@ -37,7 +38,7 @@ impl ToAlfredItem for NaiveDateTime {
             local_dt.offset().to_string()
         );
 
-        Item::new(local_dt.to_rfc3339())
+        Item::new(local_dt.format(OUTPUT_DATE_FORMAT).to_string())
             .subtitle(format!(
                 "From {}: Local time ({})",
                 description,
