@@ -1,11 +1,12 @@
 use anyhow::anyhow;
 use anyhow::Result;
-use chrono::{DateTime, Local, NaiveDateTime, Utc};
+use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
 use log::{debug, info};
 use powerpack::{output, Icon, Item};
 use std::env;
 use std::error::Error;
 
+use crate::Input::Clipboard;
 use std::iter;
 use std::time::Duration;
 
@@ -19,6 +20,14 @@ trait ToAlfredItem {
     fn to_localtime_item(&self, description: &str) -> Item<'static>;
     fn to_relative_item(&self) -> Item<'static>;
     fn to_timestamp_items(&self, description: &str) -> Vec<Item<'static>>;
+    fn to_output(&self, source: Input) -> Vec<Item<'static>>;
+}
+
+#[derive(Debug)]
+enum Input {
+    Clipboard(String),
+    Argument(String),
+    None,
 }
 
 impl ToAlfredItem for NaiveDateTime {
@@ -100,6 +109,44 @@ impl ToAlfredItem for NaiveDateTime {
                 .arg(ts_nanos.to_string()),
         ]
     }
+
+    fn to_output(&self, source: Input) -> Vec<Item<'static>> {
+        debug!("Creating outputs for input source: {:?}", source);
+        match source {
+            Clipboard(query) => {
+                let mut items = match query.parse::<i64>() {
+                    Ok(_) => vec![
+                        self.to_localtime_item("timestamp from clipboard"),
+                        self.to_utc_item("timestamp from clipboard"),
+                        self.to_relative_item(),
+                    ],
+                    Err(_) => self.to_timestamp_items("Time since epoch"),
+                };
+                items.extend(Utc::now().naive_utc().to_output(Input::None));
+                items
+            }
+            Input::Argument(query) => {
+                let mut items = match query.parse::<i64>() {
+                    Ok(_) => vec![
+                        self.to_localtime_item("timestamp"),
+                        self.to_utc_item("timestamp"),
+                        self.to_relative_item(),
+                    ],
+                    Err(_) => self.to_timestamp_items("Time since epoch"),
+                };
+                items.extend(Utc::now().naive_utc().to_output(Input::None));
+                items
+            }
+            Input::None => {
+                let mut items = self.to_timestamp_items("Current time");
+                items.extend(vec![
+                    self.to_localtime_item("Current time"),
+                    self.to_utc_item("Current time"),
+                ]);
+                items
+            }
+        }
+    }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -111,59 +158,76 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Alfred passes in a single argument for the user query.
     let arg = env::args().nth(1);
-    let query = arg.as_deref().unwrap_or("").trim();
+    let query = arg.as_deref().unwrap_or("").trim().to_string();
 
-    info!("Query: {:?}", query);
-
-    let current_ts = current_timestamps(Utc::now().naive_utc());
-
-    if query.is_empty() {
-        output(current_ts)?;
-        return Ok(());
-    }
-
-    match parse_datetime(query) {
-        Ok(dt) => {
-            let is_numeric = query.parse::<i64>().is_ok();
-            let mut items = match is_numeric {
-                true => vec![
-                    dt.to_localtime_item("timestamp"),
-                    dt.to_utc_item("timestamp"),
-                    dt.to_relative_item(),
-                ],
-                false => dt.to_timestamp_items("Time since epoch"),
-            };
-            items.extend(current_ts);
-            output(items)?;
-            Ok(())
+    info!("Argument query: {:?}", query);
+    let clipboard_content = match cli_clipboard::get_contents() {
+        Ok(content) => {
+            debug!("Clipboard contents: {:?}", content);
+            if content.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(content))
+            }
         }
         Err(e) => {
-            debug!("Failed to parse '{}', giving up. Final error: {}", query, e);
-            output(iter::once(
-                Item::new("Error")
-                    .subtitle(format!("Failed to parse '{}' to a date", query))
-                    .icon(powerpack::Icon::with_image(
-                        format!("{}/AlertStopIcon.icns", ICON_DIR).as_str(),
-                    )),
-            ))?;
-            Err(Box::from(e))
+            debug!("Did not get clipboard contents or non-string");
+            Err(e)
         }
+    };
+
+    let mut items = vec![];
+
+    match clipboard_content? {
+        None => {
+            debug!("Clipboard is empty");
+        }
+        Some(content) => match parse_datetime(content.as_str()) {
+            Ok(dt) => items.extend(dt.to_output(Clipboard(content))),
+            Err(e) => {
+                debug!("Couldn't parse clipboard to date: {}", e)
+            }
+        },
+    };
+
+    if !query.is_empty() {
+        match parse_datetime(&query) {
+            Ok(dt) => {
+                items.extend(dt.to_output(Input::Argument(query)));
+            }
+            Err(e) => {
+                debug!(
+                    "Failed to parse input '{}', giving up. Final error: {}",
+                    query, e
+                );
+                output(iter::once(
+                    Item::new("Error")
+                        .subtitle(format!("Failed to parse '{}' to a date", query))
+                        .icon(Icon::with_image(
+                            format!("{}/AlertStopIcon.icns", ICON_DIR).as_str(),
+                        )),
+                ))?;
+                return Err(Box::from(e));
+            }
+        };
     }
-}
 
-fn current_timestamps(datetime: NaiveDateTime) -> Vec<Item<'static>> {
-    debug!("Creating timestamps for {:?}", datetime);
+    if items.is_empty() {
+        items.extend(Utc::now().naive_utc().to_output(Input::None));
+    }
 
-    let mut items = datetime.to_timestamp_items("Current time");
-    items.extend(vec![
-        datetime.to_localtime_item("current time"),
-        datetime.to_utc_item("current time"),
-    ]);
-    items
+    output(items)?;
+    Ok(())
 }
 
 fn parse_datetime(s: &str) -> Result<NaiveDateTime> {
-    parse_timestamp(s).or(parse_iso8601(s)).or(parse_rfc2822(s))
+    if s.is_empty() {
+        return Err(anyhow!("Empty string"));
+    }
+    parse_timestamp(s)
+        .or(parse_iso8601(s))
+        .or(parse_rfc2822(s))
+        .or(parse_date_and_time(s))
 }
 
 fn parse_timestamp(s: &str) -> Result<NaiveDateTime> {
@@ -208,4 +272,13 @@ fn parse_iso8601(s: &str) -> Result<NaiveDateTime> {
 fn parse_rfc2822(s: &str) -> Result<NaiveDateTime> {
     debug!("Attempting to parse RFC 2822 format");
     Ok(DateTime::parse_from_rfc2822(s)?.naive_utc())
+}
+
+fn parse_date_and_time(s: &str) -> Result<NaiveDateTime> {
+    debug!("Attempting to parse date and time");
+    let naive = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")?;
+    debug!("Parsed naive DateTime: {:?}", naive);
+    let local = Local.from_local_datetime(&naive).unwrap();
+    debug!("Converted to local DateTime: {:?}", local);
+    Ok(local.naive_utc())
 }

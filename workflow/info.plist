@@ -21,6 +21,19 @@
 				<false/>
 			</dict>
 		</array>
+		<key>FC89C834-7395-4D0B-B51E-6CDC07C0C8F6</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>1256B116-9BBD-4587-BEE0-ED1AE672B8C1</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 	</dict>
 	<key>createdby</key>
 	<string>Björn Marschollek</string>
@@ -49,7 +62,7 @@
 			<key>uid</key>
 			<string>FC89C834-7395-4D0B-B51E-6CDC07C0C8F6</string>
 			<key>version</key>
-			<integer>1</integer>
+			<integer>3</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -98,6 +111,27 @@
 			<key>uid</key>
 			<string>0F02A32B-421D-49B3-99E1-2131D2168404</string>
 			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<false/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>{query}</string>
+				<key>title</key>
+				<string>Copied to clipboard</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>1256B116-9BBD-4587-BEE0-ED1AE672B8C1</string>
+			<key>version</key>
 			<integer>1</integer>
 		</dict>
 	</array>
@@ -107,6 +141,13 @@
 		<dict>
 			<key>xpos</key>
 			<integer>50</integer>
+			<key>ypos</key>
+			<integer>50</integer>
+		</dict>
+		<key>1256B116-9BBD-4587-BEE0-ED1AE672B8C1</key>
+		<dict>
+			<key>xpos</key>
+			<integer>395</integer>
 			<key>ypos</key>
 			<integer>50</integer>
 		</dict>
