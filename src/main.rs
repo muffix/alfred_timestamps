@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use anyhow::Result;
-use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use log::{debug, info};
 use powerpack::{output, Icon, Item};
 use std::env;
@@ -228,6 +228,8 @@ fn parse_datetime(s: &str) -> Result<NaiveDateTime> {
         .or(parse_iso8601(s))
         .or(parse_rfc2822(s))
         .or(parse_date_and_time(s))
+        .or(parse_date(s))
+        .or(parse_time(s))
 }
 
 fn parse_timestamp(s: &str) -> Result<NaiveDateTime> {
@@ -281,4 +283,24 @@ fn parse_date_and_time(s: &str) -> Result<NaiveDateTime> {
     let local = Local.from_local_datetime(&naive).unwrap();
     debug!("Converted to local DateTime: {:?}", local);
     Ok(local.naive_utc())
+}
+
+fn parse_date(s: &str) -> Result<NaiveDateTime> {
+    debug!("Attempting to parse date");
+    let naive = NaiveDate::parse_from_str(s, "%Y-%m-%d")?;
+    debug!("Parsed naive Date: {:?}", naive);
+    let local = Local.from_local_date(&naive).unwrap();
+    debug!("Converted to local Date: {:?}", local);
+    Ok(local.naive_utc().and_hms(0, 0, 0))
+}
+
+fn parse_time(s: &str) -> Result<NaiveDateTime> {
+    debug!("Attempting to parse time");
+    let naive = NaiveTime::parse_from_str(s, "%H:%M:%S")?;
+    debug!("Parsed naive time: {:?}", naive);
+    let local_date = Local::today();
+    debug!("Local Date: {:?}", local_date);
+    let local_datetime = local_date.and_time(naive).unwrap();
+    debug!("Local DateTime: {:?}", local_datetime);
+    Ok(local_datetime.naive_utc())
 }
