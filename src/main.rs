@@ -74,7 +74,7 @@ impl ToAlfredItem for NaiveDateTime {
 
         let dur = match dur.to_std() {
             Ok(d) => d,
-            Err(_) => Duration::from_nanos((nanos * -1) as u64),
+            Err(_) => Duration::from_nanos(-nanos as u64),
         };
         let ht = humantime::format_duration(dur);
         debug!("Human-readable duration: {}", ht);
@@ -229,11 +229,11 @@ fn parse_datetime(s: &str) -> Result<NaiveDateTime> {
         return Err(anyhow!("Empty string"));
     }
     parse_timestamp(s)
-        .or(parse_iso8601(s))
-        .or(parse_rfc2822(s))
-        .or(parse_date_and_time(s))
-        .or(parse_date(s))
-        .or(parse_time(s))
+        .or_else(|_| parse_iso8601(s))
+        .or_else(|_| parse_rfc2822(s))
+        .or_else(|_| parse_date_and_time(s))
+        .or_else(|_| parse_date(s))
+        .or_else(|_| parse_time(s))
 }
 
 fn parse_timestamp(s: &str) -> Result<NaiveDateTime> {
