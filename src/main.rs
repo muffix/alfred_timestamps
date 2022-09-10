@@ -167,20 +167,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Argument query: {:?}", query);
     let clipboard_content = match cli_clipboard::get_contents() {
-        Ok(content) => {
-            debug!("Clipboard contents: {:?}", content);
-            if content.is_empty() {
-                debug!("Clipboard is empty");
-                Ok(None)
-            } else {
-                Ok(Some(content))
-            }
-        }
+        Ok(content) => Some(content),
         Err(e) => {
-            debug!("Did not get clipboard contents or non-string");
-            Err(e)
+            debug!("Did not get clipboard contents or non-string: {}", e);
+            None
         }
-    }?;
+    };
 
     output(run_workflow(query, clipboard_content)?)?;
     Ok(())
@@ -192,13 +184,15 @@ fn run_workflow(
 ) -> Result<Vec<Item>, Box<dyn Error>> {
     let mut items = vec![];
 
-    if let Some(content) = clipboard_content {
-        match parse_datetime(content.as_str()) {
-            Ok(dt) => items.extend(dt.to_output(Clipboard(content))),
-            Err(e) => {
-                debug!("Couldn't parse clipboard to date: {}", e)
-            }
-        };
+    if query.is_empty() {
+        if let Some(content) = clipboard_content {
+            match parse_datetime(content.as_str()) {
+                Ok(dt) => items.extend(dt.to_output(Clipboard(content))),
+                Err(e) => {
+                    debug!("Couldn't parse clipboard to date: {}", e)
+                }
+            };
+        }
     }
 
     if !query.is_empty() {
@@ -348,6 +342,22 @@ mod tests {
     fn it_parses_valid_strings(#[case] input: &str, #[case] expected_timestamp: i32) {
         let items = run_workflow(input.to_string(), None).unwrap();
         assert_item_matches(&items[0], &expected_timestamp.to_string())
+    }
+
+    #[rstest]
+    fn it_ignores_clipboard_if_input_present() {
+        let items = run_workflow(
+            "2022-09-10T10:00:00Z".to_string(),
+            Some("1970-01-01T00:00:00Z".to_string()),
+        )
+        .unwrap();
+        assert_item_matches(&items[0], "1662804000")
+    }
+
+    #[rstest]
+    fn it_uses_clipboard_if_no_input_present() {
+        let items = run_workflow("".to_string(), Some("1970-01-01T00:00:00Z".to_string())).unwrap();
+        assert_item_matches(&items[0], "0")
     }
 
     fn assert_item_matches(item: &Item, expected: &str) {
