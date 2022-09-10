@@ -21,6 +21,19 @@
 				<false/>
 			</dict>
 		</array>
+		<key>41DBD43B-ED3F-447D-B6A3-146E4234A742</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>0F02A32B-421D-49B3-99E1-2131D2168404</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 		<key>FC89C834-7395-4D0B-B51E-6CDC07C0C8F6</key>
 		<array>
 			<dict>
@@ -45,6 +58,27 @@
 	<string>Timestamp converter</string>
 	<key>objects</key>
 	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<false/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>{query}</string>
+				<key>title</key>
+				<string>Copied to clipboard</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>1256B116-9BBD-4587-BEE0-ED1AE672B8C1</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
 		<dict>
 			<key>config</key>
 			<dict>
@@ -116,21 +150,21 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>lastpathcomponent</key>
+				<key>acceptsfiles</key>
 				<false/>
-				<key>onlyshowifquerypopulated</key>
+				<key>acceptsmulti</key>
+				<integer>0</integer>
+				<key>acceptstext</key>
+				<true/>
+				<key>acceptsurls</key>
 				<false/>
-				<key>removeextension</key>
-				<false/>
-				<key>text</key>
-				<string>{query}</string>
-				<key>title</key>
-				<string>Copied to clipboard</string>
+				<key>name</key>
+				<string>Convert time</string>
 			</dict>
 			<key>type</key>
-			<string>alfred.workflow.output.notification</string>
+			<string>alfred.workflow.trigger.universalaction</string>
 			<key>uid</key>
-			<string>1256B116-9BBD-4587-BEE0-ED1AE672B8C1</string>
+			<string>41DBD43B-ED3F-447D-B6A3-146E4234A742</string>
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
@@ -140,25 +174,34 @@
 		<key>0F02A32B-421D-49B3-99E1-2131D2168404</key>
 		<dict>
 			<key>xpos</key>
-			<integer>50</integer>
+			<real>50</real>
 			<key>ypos</key>
-			<integer>50</integer>
+			<real>50</real>
 		</dict>
 		<key>1256B116-9BBD-4587-BEE0-ED1AE672B8C1</key>
 		<dict>
 			<key>xpos</key>
-			<integer>395</integer>
+			<real>395</real>
 			<key>ypos</key>
-			<integer>50</integer>
+			<real>50</real>
+		</dict>
+		<key>41DBD43B-ED3F-447D-B6A3-146E4234A742</key>
+		<dict>
+			<key>xpos</key>
+			<real>80</real>
+			<key>ypos</key>
+			<real>335</real>
 		</dict>
 		<key>FC89C834-7395-4D0B-B51E-6CDC07C0C8F6</key>
 		<dict>
 			<key>xpos</key>
-			<integer>225</integer>
+			<real>225</real>
 			<key>ypos</key>
-			<integer>50</integer>
+			<real>50</real>
 		</dict>
 	</dict>
+	<key>userconfigurationconfig</key>
+	<array/>
 	<key>webaddress</key>
 	<string></string>
 </dict>
