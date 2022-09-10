@@ -34,10 +34,13 @@ impl ToAlfredItem for NaiveDateTime {
     fn to_utc_item(&self, description: &str) -> Item {
         let utc_dt = DateTime::<Utc>::from_utc(*self, Utc);
         debug!("UTC Datetime: {:?}", utc_dt);
-        Item::new(utc_dt.format(OUTPUT_DATE_FORMAT).to_string())
+
+        let formatted_date = utc_dt.format(OUTPUT_DATE_FORMAT);
+
+        Item::new(formatted_date.to_string())
             .subtitle(format!("From {}: UTC", description))
             .icon(Icon::with_file_icon(CALENDAR_ICON))
-            .arg(utc_dt.timestamp().to_string())
+            .arg(formatted_date.to_string())
     }
 
     fn to_localtime_item(&self, description: &str) -> Item {
@@ -49,14 +52,16 @@ impl ToAlfredItem for NaiveDateTime {
             local_dt.offset().to_string()
         );
 
-        Item::new(local_dt.format(OUTPUT_DATE_FORMAT).to_string())
+        let formatted_date = local_dt.format(OUTPUT_DATE_FORMAT);
+
+        Item::new(formatted_date.to_string())
             .subtitle(format!(
                 "From {}: Local time ({})",
                 description,
                 local_dt.offset()
             ))
             .icon(Icon::with_file_icon(CALENDAR_ICON))
-            .arg(local_dt.to_string())
+            .arg(formatted_date.to_string())
     }
 
     fn to_relative_item(&self) -> Item {
@@ -165,6 +170,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Ok(content) => {
             debug!("Clipboard contents: {:?}", content);
             if content.is_empty() {
+                debug!("Clipboard is empty");
                 Ok(None)
             } else {
                 Ok(Some(content))
@@ -174,21 +180,26 @@ fn main() -> Result<(), Box<dyn Error>> {
             debug!("Did not get clipboard contents or non-string");
             Err(e)
         }
-    };
+    }?;
 
+    output(run_workflow(query, clipboard_content)?)?;
+    Ok(())
+}
+
+fn run_workflow(
+    query: String,
+    clipboard_content: Option<String>,
+) -> Result<Vec<Item>, Box<dyn Error>> {
     let mut items = vec![];
 
-    match clipboard_content? {
-        None => {
-            debug!("Clipboard is empty");
-        }
-        Some(content) => match parse_datetime(content.as_str()) {
+    if let Some(content) = clipboard_content {
+        match parse_datetime(content.as_str()) {
             Ok(dt) => items.extend(dt.to_output(Clipboard(content))),
             Err(e) => {
                 debug!("Couldn't parse clipboard to date: {}", e)
             }
-        },
-    };
+        };
+    }
 
     if !query.is_empty() {
         match parse_datetime(&query) {
@@ -216,8 +227,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         items.extend(Utc::now().naive_utc().to_output(Input::None));
     }
 
-    output(items)?;
-    Ok(())
+    Ok(items)
 }
 
 fn parse_datetime(s: &str) -> Result<NaiveDateTime> {
@@ -303,4 +313,48 @@ fn parse_time(s: &str) -> Result<NaiveDateTime> {
     let local_datetime = local_date.and_time(naive).unwrap();
     debug!("Local DateTime: {:?}", local_datetime);
     Ok(local_datetime.naive_utc())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::run_workflow;
+    use powerpack::Item;
+    use pretty_assertions::assert_eq;
+    use rstest::rstest;
+    use serde::Deserialize;
+
+    #[derive(Deserialize, Debug)]
+    struct TestItem {
+        arg: String,
+        title: String,
+    }
+
+    #[rstest]
+    #[case("1662796800", "2022-09-10 08:00:00")]
+    #[case("1662796800000", "2022-09-10 08:00:00")]
+    #[case("1662796800000000", "2022-09-10 08:00:00")]
+    fn it_parses_valid_timestamps(#[case] input: &str, #[case] expected_date_str: &str) {
+        let items = run_workflow(input.to_string(), None).unwrap();
+        assert_item_matches(&items[1], expected_date_str)
+    }
+
+    #[rstest]
+    #[case("2022-09-10T10:00:00Z", 1662804000)]
+    #[case("2022-09-10T10:00:00 +00:00", 1662804000)]
+    #[case("2022-09-10T10:00:00 +02:00", 1662796800)]
+    #[case("Sat, 10 Sep 2022 10:00:00 +0200", 1662796800)]
+    #[case("2022-09-10 10:00:00", 1662804000)]
+    #[case("2022-09-10", 1662768000)]
+    fn it_parses_valid_strings(#[case] input: &str, #[case] expected_timestamp: i32) {
+        let items = run_workflow(input.to_string(), None).unwrap();
+        assert_item_matches(&items[0], &expected_timestamp.to_string())
+    }
+
+    fn assert_item_matches(item: &Item, expected: &str) {
+        let serialised = serde_json::to_string(item).unwrap();
+        let deserialised: TestItem = serde_json::from_str(&serialised).unwrap();
+
+        assert_eq!(deserialised.title, expected);
+        assert_eq!(deserialised.arg, deserialised.title);
+    }
 }
