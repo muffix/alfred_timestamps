@@ -12,5 +12,4 @@ cli-clipboard = "0.2.1"
 env_logger = "0.9"
 humantime = "2.1"
 log = "0.4"
-powerpack = "0.3.1"
-
+powerpack = "0.4.1"

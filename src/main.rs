@@ -16,11 +16,11 @@ const CALENDAR_ICON: &str = "/System/Applications/Calendar.app";
 const OUTPUT_DATE_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 
 trait ToAlfredItem {
-    fn to_utc_item(&self, description: &str) -> Item<'static>;
-    fn to_localtime_item(&self, description: &str) -> Item<'static>;
-    fn to_relative_item(&self) -> Item<'static>;
-    fn to_timestamp_items(&self, description: &str) -> Vec<Item<'static>>;
-    fn to_output(&self, source: Input) -> Vec<Item<'static>>;
+    fn to_utc_item(&self, description: &str) -> Item;
+    fn to_localtime_item(&self, description: &str) -> Item;
+    fn to_relative_item(&self) -> Item;
+    fn to_timestamp_items(&self, description: &str) -> Vec<Item>;
+    fn to_output(&self, source: Input) -> Vec<Item>;
 }
 
 #[derive(Debug)]
@@ -31,7 +31,7 @@ enum Input {
 }
 
 impl ToAlfredItem for NaiveDateTime {
-    fn to_utc_item(&self, description: &str) -> Item<'static> {
+    fn to_utc_item(&self, description: &str) -> Item {
         let utc_dt = DateTime::<Utc>::from_utc(*self, Utc);
         debug!("UTC Datetime: {:?}", utc_dt);
         Item::new(utc_dt.format(OUTPUT_DATE_FORMAT).to_string())
@@ -40,7 +40,7 @@ impl ToAlfredItem for NaiveDateTime {
             .arg(utc_dt.timestamp().to_string())
     }
 
-    fn to_localtime_item(&self, description: &str) -> Item<'static> {
+    fn to_localtime_item(&self, description: &str) -> Item {
         let local_dt: DateTime<Local> = DateTime::from(DateTime::<Utc>::from_utc(*self, Utc));
 
         debug!(
@@ -59,7 +59,7 @@ impl ToAlfredItem for NaiveDateTime {
             .arg(local_dt.to_string())
     }
 
-    fn to_relative_item(&self) -> Item<'static> {
+    fn to_relative_item(&self) -> Item {
         let utc_dt = DateTime::<Utc>::from_utc(*self, Utc);
         debug!("UTC: {}", utc_dt.to_rfc3339());
         let dur = utc_dt.signed_duration_since(Utc::now());
@@ -80,7 +80,7 @@ impl ToAlfredItem for NaiveDateTime {
             .arg(ht.to_string())
     }
 
-    fn to_timestamp_items(&self, description: &str) -> Vec<Item<'static>> {
+    fn to_timestamp_items(&self, description: &str) -> Vec<Item> {
         let ts_nanos = self.timestamp_nanos();
         debug!("ns: {}", ts_nanos);
         let ts_micros = self.timestamp_nanos() / 1000;
@@ -110,7 +110,7 @@ impl ToAlfredItem for NaiveDateTime {
         ]
     }
 
-    fn to_output(&self, source: Input) -> Vec<Item<'static>> {
+    fn to_output(&self, source: Input) -> Vec<Item> {
         debug!("Creating outputs for input source: {:?}", source);
         match source {
             Clipboard(query) => {
