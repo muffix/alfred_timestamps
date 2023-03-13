@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.66"
-chrono = "0.4.20"
+chrono = "0.4.24"
 cli-clipboard = "0.3.0"
 env_logger = "0.9.1"
 humantime = "2.1.0"
